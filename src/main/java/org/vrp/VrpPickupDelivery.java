@@ -1,14 +1,8 @@
 package org.vrp;
 
 import com.google.ortools.Loader;
-import com.google.ortools.constraintsolver.Assignment;
-import com.google.ortools.constraintsolver.FirstSolutionStrategy;
-import com.google.ortools.constraintsolver.RoutingDimension;
-import com.google.ortools.constraintsolver.RoutingIndexManager;
-import com.google.ortools.constraintsolver.RoutingModel;
-import com.google.ortools.constraintsolver.RoutingSearchParameters;
-import com.google.ortools.constraintsolver.Solver;
-import com.google.ortools.constraintsolver.main;
+import com.google.ortools.constraintsolver.*;
+
 import java.util.logging.Logger;
 
 /** Minimal Pickup & Delivery Problem (PDP).*/
@@ -77,7 +71,9 @@ public class VrpPickupDelivery {
         System.out.println("Total Distance of all routes: " + totalDistance + "m");
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void run(String[] args,
+                           FirstSolutionStrategy.Value firstSolutionStrategy,
+                           LocalSearchMetaheuristic.Value localSearch) throws Exception {
         Loader.loadNativeLibraries();
         // Instantiate the data problem.
         final DataModel data = new DataModel();
@@ -123,11 +119,21 @@ public class VrpPickupDelivery {
         }
 
         // Setting first solution heuristic.
-        RoutingSearchParameters searchParameters =
-                main.defaultRoutingSearchParameters()
-                        .toBuilder()
-                        .setFirstSolutionStrategy(FirstSolutionStrategy.Value.PARALLEL_CHEAPEST_INSERTION)
-                        .build();
+        RoutingSearchParameters searchParameters = null;
+        if (localSearch != null) {
+            searchParameters =
+                    main.defaultRoutingSearchParameters()
+                            .toBuilder()
+                            .setFirstSolutionStrategy(firstSolutionStrategy)
+                            .setLocalSearchMetaheuristic(localSearch)
+                            .build();
+        }else {
+            searchParameters =
+                    main.defaultRoutingSearchParameters()
+                            .toBuilder()
+                            .setFirstSolutionStrategy(firstSolutionStrategy)
+                            .build();
+        }
 
         // Solve the problem.
         Assignment solution = routing.solveWithParameters(searchParameters);

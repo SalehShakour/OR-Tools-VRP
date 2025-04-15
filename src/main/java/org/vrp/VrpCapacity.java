@@ -76,7 +76,9 @@ public final class VrpCapacity {
         System.out.println("Total load of all routes: " + totalLoad);
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void run(String[] args,
+                           FirstSolutionStrategy.Value firstSolutionStrategy,
+                           LocalSearchMetaheuristic.Value localSearch) throws Exception {
         Loader.loadNativeLibraries();
         // Instantiate the data problem.
         final DataModel data = new DataModel();
@@ -113,13 +115,21 @@ public final class VrpCapacity {
                 "Capacity");
 
         // Setting first solution heuristic.
-        RoutingSearchParameters searchParameters =
-                main.defaultRoutingSearchParameters()
-                        .toBuilder()
-                        .setFirstSolutionStrategy(FirstSolutionStrategy.Value.PATH_CHEAPEST_ARC)
-                        .setLocalSearchMetaheuristic(LocalSearchMetaheuristic.Value.GUIDED_LOCAL_SEARCH)
-                        .setTimeLimit(Duration.newBuilder().setSeconds(1).build())
-                        .build();
+        RoutingSearchParameters searchParameters = null;
+        if (localSearch != null) {
+            searchParameters =
+                    main.defaultRoutingSearchParameters()
+                            .toBuilder()
+                            .setFirstSolutionStrategy(firstSolutionStrategy)
+                            .setLocalSearchMetaheuristic(localSearch)
+                            .build();
+        }else {
+            searchParameters =
+                    main.defaultRoutingSearchParameters()
+                            .toBuilder()
+                            .setFirstSolutionStrategy(firstSolutionStrategy)
+                            .build();
+        }
 
         // Solve the problem.
         Assignment solution = routing.solveWithParameters(searchParameters);
