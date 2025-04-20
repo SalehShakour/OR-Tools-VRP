@@ -2,12 +2,13 @@ package org.vrp;
 
 import com.google.ortools.Loader;
 import com.google.ortools.constraintsolver.*;
+import com.google.protobuf.Duration;
 
 import java.util.logging.Logger;
 
-/** VRPTW. */
-public class VrpTimeWindows {
+public class VrpTimeWindows implements ProblemRunner {
     private static final Logger logger = Logger.getLogger(VrpTimeWindows.class.getName());
+
     static class DataModel {
         public final long[][] timeMatrix = {
                 {0, 6, 9, 8, 7, 3, 6, 2, 3, 2, 6, 6, 4, 4, 5, 9, 7},
@@ -29,131 +30,87 @@ public class VrpTimeWindows {
                 {7, 14, 9, 16, 14, 8, 5, 10, 6, 5, 4, 10, 8, 6, 2, 9, 0},
         };
         public final long[][] timeWindows = {
-                {0, 5}, // depot
-                {7, 12}, // 1
-                {10, 15}, // 2
-                {16, 18}, // 3
-                {10, 13}, // 4
-                {0, 5}, // 5
-                {5, 10}, // 6
-                {0, 4}, // 7
-                {5, 10}, // 8
-                {0, 3}, // 9
-                {10, 16}, // 10
-                {10, 15}, // 11
-                {0, 5}, // 12
-                {5, 10}, // 13
-                {7, 8}, // 14
-                {10, 15}, // 15
-                {11, 15}, // 16
+                {0, 5}, {7, 12}, {10, 15}, {16, 18}, {10, 13}, {0, 5},
+                {5, 10}, {0, 4}, {5, 10}, {0, 3}, {10, 16}, {10, 15},
+                {0, 5}, {5, 10}, {7, 8}, {10, 15}, {11, 15},
         };
         public final int vehicleNumber = 4;
         public final int depot = 0;
     }
 
-    /// @brief Print the solution.
-    static void printSolution(
-            DataModel data, RoutingModel routing, RoutingIndexManager manager, Assignment solution) {
-        // Solution cost.
-        System.out.println("Objective : " + solution.objectiveValue());
-        // Inspect solution.
+    private String printSolution(DataModel data, RoutingModel routing, RoutingIndexManager manager, Assignment solution) {
+        StringBuilder result = new StringBuilder();
         RoutingDimension timeDimension = routing.getMutableDimension("Time");
         long totalTime = 0;
         for (int i = 0; i < data.vehicleNumber; ++i) {
-            if (!routing.isVehicleUsed(solution, i)) {
-                continue;
-            }
+            if (!routing.isVehicleUsed(solution, i)) continue;
             long index = routing.start(i);
-            System.out.println("Route for Vehicle " + i + ":");
-            String route = "";
+            result.append("Route for Vehicle ").append(i).append(":\n");
+            StringBuilder route = new StringBuilder();
             while (!routing.isEnd(index)) {
                 IntVar timeVar = timeDimension.cumulVar(index);
-                route += manager.indexToNode(index) + " Time(" + solution.min(timeVar) + ","
-                        + solution.max(timeVar) + ") -> ";
+                route.append(manager.indexToNode(index))
+                        .append(" Time(").append(solution.min(timeVar)).append(",")
+                        .append(solution.max(timeVar)).append(") -> ");
                 index = solution.value(routing.nextVar(index));
             }
             IntVar timeVar = timeDimension.cumulVar(index);
-            route += manager.indexToNode(index) + " Time(" + solution.min(timeVar) + ","
-                    + solution.max(timeVar) + ")";
-            System.out.println(route);
-            System.out.println("Time of the route: " + solution.min(timeVar) + "min");
+            route.append(manager.indexToNode(index))
+                    .append(" Time(").append(solution.min(timeVar)).append(",")
+                    .append(solution.max(timeVar)).append(")");
+            result.append(route).append("\n");
+            result.append("Time of the route: ").append(solution.min(timeVar)).append("min\n");
             totalTime += solution.min(timeVar);
         }
-        System.out.println("Total time of all routes: " + totalTime + "min");
+        result.append("Total time of all routes: ").append(totalTime).append("min\n");
+        return result.toString();
     }
 
-    public static void run(String[] args,
-                           FirstSolutionStrategy.Value firstSolutionStrategy,
-                           LocalSearchMetaheuristic.Value localSearch) throws Exception {
+    @Override
+    public String run(String[] args, FirstSolutionStrategy.Value firstSolutionStrategy, LocalSearchMetaheuristic.Value localSearch) {
         Loader.loadNativeLibraries();
-        // Instantiate the data problem.
-        final DataModel data = new DataModel();
-
-        // Create Routing Index Manager
-        RoutingIndexManager manager =
-                new RoutingIndexManager(data.timeMatrix.length, data.vehicleNumber, data.depot);
-
-        // Create Routing Model.
+        DataModel data = new DataModel();
+        RoutingIndexManager manager = new RoutingIndexManager(data.timeMatrix.length, data.vehicleNumber, data.depot);
         RoutingModel routing = new RoutingModel(manager);
 
-        // Create and register a transit callback.
-        final int transitCallbackIndex =
-                routing.registerTransitCallback((long fromIndex, long toIndex) -> {
-                    // Convert from routing variable Index to user NodeIndex.
-                    int fromNode = manager.indexToNode(fromIndex);
-                    int toNode = manager.indexToNode(toIndex);
-                    return data.timeMatrix[fromNode][toNode];
-                });
+        final int transitCallbackIndex = routing.registerTransitCallback((long fromIndex, long toIndex) -> {
+            int fromNode = manager.indexToNode(fromIndex);
+            int toNode = manager.indexToNode(toIndex);
+            return data.timeMatrix[fromNode][toNode];
+        });
 
-        // Define cost of each arc.
         routing.setArcCostEvaluatorOfAllVehicles(transitCallbackIndex);
 
-        // Add Time constraint.
-        boolean unused = routing.addDimension(transitCallbackIndex, // transit callback
-                30, // allow waiting time
-                30, // vehicle maximum capacities
-                false, // start cumul to zero
-                "Time");
+        routing.addDimension(transitCallbackIndex, 30, 30, false, "Time");
         RoutingDimension timeDimension = routing.getMutableDimension("Time");
-        // Add time window constraints for each location except depot.
+
         for (int i = 1; i < data.timeWindows.length; ++i) {
             long index = manager.nodeToIndex(i);
             timeDimension.cumulVar(index).setRange(data.timeWindows[i][0], data.timeWindows[i][1]);
         }
-        // Add time window constraints for each vehicle start node.
         for (int i = 0; i < data.vehicleNumber; ++i) {
             long index = routing.start(i);
             timeDimension.cumulVar(index).setRange(data.timeWindows[0][0], data.timeWindows[0][1]);
-        }
-
-        // Instantiate route start and end times to produce feasible times.
-        for (int i = 0; i < data.vehicleNumber; ++i) {
             routing.addVariableMinimizedByFinalizer(timeDimension.cumulVar(routing.start(i)));
             routing.addVariableMinimizedByFinalizer(timeDimension.cumulVar(routing.end(i)));
         }
 
-        // Setting first solution heuristic.
-        RoutingSearchParameters searchParameters = null;
+        RoutingSearchParameters.Builder parametersBuilder =
+                main.defaultRoutingSearchParameters().toBuilder()
+                        .setFirstSolutionStrategy(firstSolutionStrategy);
         if (localSearch != null) {
-            searchParameters =
-                    main.defaultRoutingSearchParameters()
-                            .toBuilder()
-                            .setFirstSolutionStrategy(firstSolutionStrategy)
-                            .setLocalSearchMetaheuristic(localSearch)
-                            .build();
-        }else {
-            searchParameters =
-                    main.defaultRoutingSearchParameters()
-                            .toBuilder()
-                            .setFirstSolutionStrategy(firstSolutionStrategy)
-                            .build();
+            parametersBuilder.setLocalSearchMetaheuristic(localSearch)
+                    .setTimeLimit(Duration.newBuilder().setSeconds(10).build())
+            ;
         }
 
-        // Solve the problem.
-        Assignment solution = routing.solveWithParameters(searchParameters);
+        Assignment solution = routing.solveWithParameters(parametersBuilder.build());
+        if (solution == null) return "No solution found.";
+        return printSolution(data, routing, manager, solution);
+    }
 
-        // Print solution on console.
-        printSolution(data, routing, manager, solution);
+    @Override
+    public String getName() {
+        return "VrpTimeWindows";
     }
 }
-// [END_program_part1]

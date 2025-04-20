@@ -9,11 +9,9 @@ import com.google.ortools.constraintsolver.RoutingModel;
 import com.google.ortools.constraintsolver.RoutingSearchParameters;
 import com.google.ortools.constraintsolver.main;
 import com.google.protobuf.Duration;
-import java.util.logging.Logger;
 
-/** Minimal VRP. */
-public final class VrpCapacity {
-    private static final Logger logger = Logger.getLogger(VrpCapacity.class.getName());
+
+public class VrpCapacity implements ProblemRunner {
 
     static class DataModel {
         public final long[][] distanceMatrix = {
@@ -41,102 +39,86 @@ public final class VrpCapacity {
         public final int depot = 0;
     }
 
-    /// @brief Print the solution.
-    static void printSolution(
-            DataModel data, RoutingModel routing, RoutingIndexManager manager, Assignment solution) {
-        // Solution cost.
-        System.out.println("Objective: " + solution.objectiveValue());
-        // Inspect solution.
+    static String printSolution(DataModel data, RoutingModel routing, RoutingIndexManager manager, Assignment solution) {
+        StringBuilder output = new StringBuilder();
+        output.append("Objective: ").append(solution.objectiveValue()).append("\n");
         long totalDistance = 0;
         long totalLoad = 0;
+
         for (int i = 0; i < data.vehicleNumber; ++i) {
-            if (!routing.isVehicleUsed(solution, i)) {
-                continue;
-            }
+            if (!routing.isVehicleUsed(solution, i)) continue;
             long index = routing.start(i);
-            System.out.println("Route for Vehicle " + i + ":");
             long routeDistance = 0;
             long routeLoad = 0;
-            String route = "";
+            StringBuilder route = new StringBuilder("Route for Vehicle " + i + ":\n");
             while (!routing.isEnd(index)) {
                 long nodeIndex = manager.indexToNode(index);
                 routeLoad += data.demands[(int) nodeIndex];
-                route += nodeIndex + " Load(" + routeLoad + ") -> ";
-                long previousIndex = index;
+                route.append(nodeIndex).append(" Load(").append(routeLoad).append(") -> ");
+                long prevIndex = index;
                 index = solution.value(routing.nextVar(index));
-                routeDistance += routing.getArcCostForVehicle(previousIndex, index, i);
+                routeDistance += routing.getArcCostForVehicle(prevIndex, index, i);
             }
-            route += manager.indexToNode(routing.end(i));
-            System.out.println(route);
-            System.out.println("Distance of the route: " + routeDistance + "m");
+            route.append(manager.indexToNode(routing.end(i))).append("\n");
+            route.append("Distance of the route: ").append(routeDistance).append("m\n");
+
             totalDistance += routeDistance;
             totalLoad += routeLoad;
+            output.append(route);
         }
-        System.out.println("Total distance of all routes: " + totalDistance + "m");
-        System.out.println("Total load of all routes: " + totalLoad);
+        output.append("Total distance of all routes: ").append(totalDistance).append("m\n");
+        output.append("Total load of all routes: ").append(totalLoad).append("\n");
+        return output.toString();
     }
 
-    public static void run(String[] args,
-                           FirstSolutionStrategy.Value firstSolutionStrategy,
-                           LocalSearchMetaheuristic.Value localSearch) throws Exception {
-        Loader.loadNativeLibraries();
-        // Instantiate the data problem.
-        final DataModel data = new DataModel();
+    @Override
+    public String run(String[] args, FirstSolutionStrategy.Value first, LocalSearchMetaheuristic.Value local) {
+        try {
+            Loader.loadNativeLibraries();
+            DataModel data = new DataModel();
 
-        // Create Routing Index Manager
-        RoutingIndexManager manager =
-                new RoutingIndexManager(data.distanceMatrix.length, data.vehicleNumber, data.depot);
+            RoutingIndexManager manager =
+                    new RoutingIndexManager(data.distanceMatrix.length, data.vehicleNumber, data.depot);
 
-        // Create Routing Model.
-        RoutingModel routing = new RoutingModel(manager);
+            RoutingModel routing = new RoutingModel(manager);
 
-        // Create and register a transit callback.
-        final int transitCallbackIndex =
-                routing.registerTransitCallback((long fromIndex, long toIndex) -> {
-                    // Convert from routing variable Index to user NodeIndex.
-                    int fromNode = manager.indexToNode(fromIndex);
-                    int toNode = manager.indexToNode(toIndex);
-                    return data.distanceMatrix[fromNode][toNode];
-                });
+            final int transitCallbackIndex = routing.registerTransitCallback((fromIndex, toIndex) -> {
+                int fromNode = manager.indexToNode(fromIndex);
+                int toNode = manager.indexToNode(toIndex);
+                return (int) data.distanceMatrix[fromNode][toNode];
+            });
+            routing.setArcCostEvaluatorOfAllVehicles(transitCallbackIndex);
 
-        // Define cost of each arc.
-        routing.setArcCostEvaluatorOfAllVehicles(transitCallbackIndex);
+            final int demandCallbackIndex = routing.registerUnaryTransitCallback(fromIndex ->
+                    (int) data.demands[manager.indexToNode(fromIndex)]);
 
-        // Add Capacity constraint.
-        final int demandCallbackIndex = routing.registerUnaryTransitCallback((long fromIndex) -> {
-            // Convert from routing variable Index to user NodeIndex.
-            int fromNode = manager.indexToNode(fromIndex);
-            return data.demands[fromNode];
-        });
-        boolean unused = routing.addDimensionWithVehicleCapacity(demandCallbackIndex,
-                0, // null capacity slack
-                data.vehicleCapacities, // vehicle maximum capacities
-                true, // start cumul to zero
-                "Capacity");
+            routing.addDimensionWithVehicleCapacity(
+                    demandCallbackIndex,
+                    0, // slack
+                    data.vehicleCapacities,
+                    true,
+                    "Capacity"
+            );
 
-        // Setting first solution heuristic.
-        RoutingSearchParameters searchParameters = null;
-        if (localSearch != null) {
-            searchParameters =
-                    main.defaultRoutingSearchParameters()
-                            .toBuilder()
-                            .setFirstSolutionStrategy(firstSolutionStrategy)
-                            .setLocalSearchMetaheuristic(localSearch)
-                            .build();
-        }else {
-            searchParameters =
-                    main.defaultRoutingSearchParameters()
-                            .toBuilder()
-                            .setFirstSolutionStrategy(firstSolutionStrategy)
-                            .build();
+            RoutingSearchParameters.Builder searchParamsBuilder = main.defaultRoutingSearchParameters().toBuilder()
+                    .setFirstSolutionStrategy(first);
+            if (local != null) {
+                searchParamsBuilder.setLocalSearchMetaheuristic(local).setTimeLimit(Duration.newBuilder().setSeconds(10).build());
+            }
+
+            Assignment solution = routing.solveWithParameters(searchParamsBuilder.build());
+            if (solution != null) {
+                return printSolution(data, routing, manager, solution);
+            } else {
+                return "No solution found.";
+            }
+        } catch (Exception e) {
+            return "Error during execution: " + e.getMessage();
         }
-
-        // Solve the problem.
-        Assignment solution = routing.solveWithParameters(searchParameters);
-
-        // Print solution on console.
-        printSolution(data, routing, manager, solution);
     }
 
-    private VrpCapacity() {}
+    @Override
+    public String getName() {
+        return "VRP with Capacity Constraints";
+    }
 }

@@ -2,12 +2,11 @@ package org.vrp;
 
 import com.google.ortools.Loader;
 import com.google.ortools.constraintsolver.*;
+import com.google.protobuf.Duration;
 
 import java.util.logging.Logger;
 
-
-/** Minimal TSP using distance matrix. */
-public class TspCities {
+public class TspCities implements ProblemRunner {
     private static final Logger logger = Logger.getLogger(TspCities.class.getName());
 
     static class DataModel {
@@ -34,75 +33,71 @@ public class TspCities {
         public final int depot = 0;
     }
 
-    /// @brief Print the solution.
-    static void printSolution(
+    private String getSolutionString(
             RoutingModel routing, RoutingIndexManager manager, Assignment solution) {
-        // Solution cost.
-        System.out.println("Objective: " + solution.objectiveValue() + "miles");
-        // Inspect solution.
-        System.out.println("Route:");
+        StringBuilder result = new StringBuilder();
+        result.append("Objective: ").append(solution.objectiveValue()).append(" miles\n");
+        result.append("Route:\n");
         long routeDistance = 0;
-        String route = "";
         long index = routing.start(0);
         while (!routing.isEnd(index)) {
-            route += manager.indexToNode(index) + " -> ";
+            result.append(manager.indexToNode(index)).append(" -> ");
             long previousIndex = index;
             index = solution.value(routing.nextVar(index));
             routeDistance += routing.getArcCostForVehicle(previousIndex, index, 0);
         }
-        route += manager.indexToNode(routing.end(0));
-        System.out.println(route);
-        System.out.println("Route distance: " + routeDistance + "miles");
+        result.append(manager.indexToNode(routing.end(0))).append("\n");
+        result.append("Route distance: ").append(routeDistance).append(" miles\n");
+        return result.toString();
     }
 
-    public static void run(String[] args,
-                            FirstSolutionStrategy.Value firstSolutionStrategy,
-                            LocalSearchMetaheuristic.Value localSearch) throws Exception {
+    @Override
+    public String run(String[] args,
+                      FirstSolutionStrategy.Value firstSolutionStrategy,
+                      LocalSearchMetaheuristic.Value localSearch) {
         Loader.loadNativeLibraries();
-        // Instantiate the data problem.
         final DataModel data = new DataModel();
 
-        // Create Routing Index Manager
         RoutingIndexManager manager =
                 new RoutingIndexManager(data.distanceMatrix.length, data.vehicleNumber, data.depot);
 
-        // Create Routing Model.
         RoutingModel routing = new RoutingModel(manager);
 
-        // Create and register a transit callback.
         final int transitCallbackIndex =
                 routing.registerTransitCallback((long fromIndex, long toIndex) -> {
-                    // Convert from routing variable Index to user NodeIndex.
                     int fromNode = manager.indexToNode(fromIndex);
                     int toNode = manager.indexToNode(toIndex);
                     return data.distanceMatrix[fromNode][toNode];
                 });
 
-        // Define cost of each arc.
         routing.setArcCostEvaluatorOfAllVehicles(transitCallbackIndex);
 
-        // Setting first solution heuristic.
-        RoutingSearchParameters searchParameters = null;
+        RoutingSearchParameters searchParameters;
         if (localSearch != null) {
-            searchParameters =
-                    main.defaultRoutingSearchParameters()
-                            .toBuilder()
-                            .setFirstSolutionStrategy(firstSolutionStrategy)
-                            .setLocalSearchMetaheuristic(localSearch)
-                            .build();
-        }else {
-            searchParameters =
-                    main.defaultRoutingSearchParameters()
-                            .toBuilder()
-                            .setFirstSolutionStrategy(firstSolutionStrategy)
-                            .build();
+            searchParameters = main.defaultRoutingSearchParameters()
+                    .toBuilder()
+                    .setFirstSolutionStrategy(firstSolutionStrategy)
+                    .setLocalSearchMetaheuristic(localSearch)
+                    .setTimeLimit(Duration.newBuilder().setSeconds(10).build())
+                    .build();
+        } else {
+            searchParameters = main.defaultRoutingSearchParameters()
+                    .toBuilder()
+                    .setFirstSolutionStrategy(firstSolutionStrategy)
+                    .build();
         }
 
-
-        // Solve the problem.
         Assignment solution = routing.solveWithParameters(searchParameters);
 
-        // Print solution on console.
-        printSolution(routing, manager, solution);
+        if (solution != null) {
+            return getSolutionString(routing, manager, solution);
+        } else {
+            return "No solution found.";
+        }
+    }
+
+    @Override
+    public String getName() {
+        return "TSP - Cities";
     }
 }

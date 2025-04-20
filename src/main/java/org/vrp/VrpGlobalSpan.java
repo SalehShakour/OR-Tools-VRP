@@ -2,11 +2,11 @@ package org.vrp;
 
 import com.google.ortools.Loader;
 import com.google.ortools.constraintsolver.*;
+import com.google.protobuf.Duration;
 
 import java.util.logging.Logger;
 
-/** Minimal VRP.*/
-public class VrpGlobalSpan {
+public class VrpGlobalSpan implements ProblemRunner {
     private static final Logger logger = Logger.getLogger(VrpGlobalSpan.class.getName());
 
     static class DataModel {
@@ -33,88 +33,78 @@ public class VrpGlobalSpan {
         public final int depot = 0;
     }
 
-    /// @brief Print the solution.
-    static void printSolution(
-            DataModel data, RoutingModel routing, RoutingIndexManager manager, Assignment solution) {
-        // Solution cost.
-        System.out.println("Objective : " + solution.objectiveValue());
-        // Inspect solution.
+    /// Convert the solution into a string (instead of just printing)
+    private String buildSolutionString(DataModel data, RoutingModel routing, RoutingIndexManager manager, Assignment solution) {
+        StringBuilder result = new StringBuilder();
+        result.append("Objective: ").append(solution.objectiveValue()).append("\n");
         long maxRouteDistance = 0;
         for (int i = 0; i < data.vehicleNumber; ++i) {
             if (!routing.isVehicleUsed(solution, i)) {
                 continue;
             }
             long index = routing.start(i);
-            System.out.println("Route for Vehicle " + i + ":");
+            result.append("Route for Vehicle ").append(i).append(":\n");
             long routeDistance = 0;
-            String route = "";
+            StringBuilder route = new StringBuilder();
             while (!routing.isEnd(index)) {
-                route += manager.indexToNode(index) + " -> ";
+                route.append(manager.indexToNode(index)).append(" -> ");
                 long previousIndex = index;
                 index = solution.value(routing.nextVar(index));
                 routeDistance += routing.getArcCostForVehicle(previousIndex, index, i);
             }
-            System.out.println(route + manager.indexToNode(index));
-            System.out.println("Distance of the route: " + routeDistance + "m");
-            maxRouteDistance = Math.max(routeDistance, maxRouteDistance);
+            route.append(manager.indexToNode(index));
+            result.append(route).append("\n");
+            result.append("Distance of the route: ").append(routeDistance).append("m\n");
+            maxRouteDistance = Math.max(maxRouteDistance, routeDistance);
         }
-        System.out.println("Maximum of the route distances: " + maxRouteDistance + "m");
+        result.append("Maximum of the route distances: ").append(maxRouteDistance).append("m\n");
+        return result.toString();
     }
 
-    public static void run(String[] args,
-                           FirstSolutionStrategy.Value firstSolutionStrategy,
-                           LocalSearchMetaheuristic.Value localSearch) throws Exception {
+    @Override
+    public String run(String[] args, FirstSolutionStrategy.Value first, LocalSearchMetaheuristic.Value local) {
         Loader.loadNativeLibraries();
-        // Instantiate the data problem.
         final DataModel data = new DataModel();
-
-        // Create Routing Index Manager
-        RoutingIndexManager manager =
-                new RoutingIndexManager(data.distanceMatrix.length, data.vehicleNumber, data.depot);
-
-        // Create Routing Model.
+        RoutingIndexManager manager = new RoutingIndexManager(data.distanceMatrix.length, data.vehicleNumber, data.depot);
         RoutingModel routing = new RoutingModel(manager);
 
-        // Create and register a transit callback.
-        final int transitCallbackIndex =
-                routing.registerTransitCallback((long fromIndex, long toIndex) -> {
-                    // Convert from routing variable Index to user NodeIndex.
-                    int fromNode = manager.indexToNode(fromIndex);
-                    int toNode = manager.indexToNode(toIndex);
-                    return data.distanceMatrix[fromNode][toNode];
-                });
+        final int transitCallbackIndex = routing.registerTransitCallback((long fromIndex, long toIndex) -> {
+            int fromNode = manager.indexToNode(fromIndex);
+            int toNode = manager.indexToNode(toIndex);
+            return data.distanceMatrix[fromNode][toNode];
+        });
 
-        // Define cost of each arc.
         routing.setArcCostEvaluatorOfAllVehicles(transitCallbackIndex);
 
-        // Add Distance constraint.
-        boolean unused = routing.addDimension(transitCallbackIndex, 0, 3000,
-                true, // start cumul to zero
-                "Distance");
+        routing.addDimension(transitCallbackIndex, 0, 3000, true, "Distance");
         RoutingDimension distanceDimension = routing.getMutableDimension("Distance");
         distanceDimension.setGlobalSpanCostCoefficient(100);
 
-        // Setting first solution heuristic.
-        RoutingSearchParameters searchParameters = null;
-        if (localSearch != null) {
-            searchParameters =
-                    main.defaultRoutingSearchParameters()
-                            .toBuilder()
-                            .setFirstSolutionStrategy(firstSolutionStrategy)
-                            .setLocalSearchMetaheuristic(localSearch)
-                            .build();
-        }else {
-            searchParameters =
-                    main.defaultRoutingSearchParameters()
-                            .toBuilder()
-                            .setFirstSolutionStrategy(firstSolutionStrategy)
-                            .build();
+        RoutingSearchParameters searchParameters;
+        if (local != null) {
+            searchParameters = main.defaultRoutingSearchParameters()
+                    .toBuilder()
+                    .setFirstSolutionStrategy(first)
+                    .setLocalSearchMetaheuristic(local)
+                    .setTimeLimit(Duration.newBuilder().setSeconds(10).build())
+                    .build();
+        } else {
+            searchParameters = main.defaultRoutingSearchParameters()
+                    .toBuilder()
+                    .setFirstSolutionStrategy(first)
+                    .build();
         }
 
-        // Solve the problem.
         Assignment solution = routing.solveWithParameters(searchParameters);
+        if (solution != null) {
+            return buildSolutionString(data, routing, manager, solution);
+        } else {
+            return "No solution found.";
+        }
+    }
 
-        // Print solution on console.
-        printSolution(data, routing, manager, solution);
+    @Override
+    public String getName() {
+        return "VRP with Global Span";
     }
 }
