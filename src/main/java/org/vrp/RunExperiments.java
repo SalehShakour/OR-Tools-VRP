@@ -12,7 +12,7 @@ import java.time.Instant;
 public class RunExperiments {
     public static void main(String[] args) throws Exception {
         Loader.loadNativeLibraries();
-        PrintWriter writer = new PrintWriter(new FileWriter("experiment_results.txt"));
+        PrintWriter writer = new PrintWriter(new FileWriter("TSP.txt"));
 
         ProblemRunner[] problems = {
                 new TspCities(),
@@ -26,9 +26,9 @@ public class RunExperiments {
                 FirstSolutionStrategy.Value.AUTOMATIC,
                 FirstSolutionStrategy.Value.PATH_CHEAPEST_ARC,
                 FirstSolutionStrategy.Value.PATH_MOST_CONSTRAINED_ARC,
-                FirstSolutionStrategy.Value.EVALUATOR_STRATEGY,
+//                FirstSolutionStrategy.Value.EVALUATOR_STRATEGY,
                 FirstSolutionStrategy.Value.SAVINGS,
-                FirstSolutionStrategy.Value.SWEEP,
+//                FirstSolutionStrategy.Value.SWEEP,
                 FirstSolutionStrategy.Value.CHRISTOFIDES,
                 FirstSolutionStrategy.Value.ALL_UNPERFORMED,
                 FirstSolutionStrategy.Value.BEST_INSERTION,
@@ -71,6 +71,6 @@ public class RunExperiments {
         }
 
         writer.close();
-        System.out.println("Experiments completed and results saved to experiment_results.txt");
+        System.out.println("Experiments completed and results saved to TSP.txt");
     }
 }

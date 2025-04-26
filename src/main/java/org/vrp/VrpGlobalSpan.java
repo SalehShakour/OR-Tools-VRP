@@ -4,11 +4,7 @@ import com.google.ortools.Loader;
 import com.google.ortools.constraintsolver.*;
 import com.google.protobuf.Duration;
 
-import java.util.logging.Logger;
-
 public class VrpGlobalSpan implements ProblemRunner {
-    private static final Logger logger = Logger.getLogger(VrpGlobalSpan.class.getName());
-
     static class DataModel {
         public final long[][] distanceMatrix = {
                 {0, 548, 776, 696, 582, 274, 502, 194, 308, 194, 536, 502, 388, 354, 468, 776, 662},
@@ -92,6 +88,7 @@ public class VrpGlobalSpan implements ProblemRunner {
             searchParameters = main.defaultRoutingSearchParameters()
                     .toBuilder()
                     .setFirstSolutionStrategy(first)
+                    .setTimeLimit(Duration.newBuilder().setSeconds(10).build())
                     .build();
         }
 

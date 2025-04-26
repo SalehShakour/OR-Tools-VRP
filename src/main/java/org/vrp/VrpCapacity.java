@@ -12,7 +12,6 @@ import com.google.protobuf.Duration;
 
 
 public class VrpCapacity implements ProblemRunner {
-
     static class DataModel {
         public final long[][] distanceMatrix = {
                 {0, 548, 776, 696, 582, 274, 502, 194, 308, 194, 536, 502, 388, 354, 468, 776, 662},
@@ -101,9 +100,10 @@ public class VrpCapacity implements ProblemRunner {
             );
 
             RoutingSearchParameters.Builder searchParamsBuilder = main.defaultRoutingSearchParameters().toBuilder()
-                    .setFirstSolutionStrategy(first);
+                    .setFirstSolutionStrategy(first)
+                    .setTimeLimit(Duration.newBuilder().setSeconds(10).build());
             if (local != null) {
-                searchParamsBuilder.setLocalSearchMetaheuristic(local).setTimeLimit(Duration.newBuilder().setSeconds(10).build());
+                searchParamsBuilder.setLocalSearchMetaheuristic(local);
             }
 
             Assignment solution = routing.solveWithParameters(searchParamsBuilder.build());

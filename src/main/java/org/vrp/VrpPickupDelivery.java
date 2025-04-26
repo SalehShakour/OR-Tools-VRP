@@ -4,11 +4,7 @@ import com.google.ortools.Loader;
 import com.google.ortools.constraintsolver.*;
 import com.google.protobuf.Duration;
 
-import java.util.logging.Logger;
-
 public class VrpPickupDelivery implements ProblemRunner {
-    private static final Logger logger = Logger.getLogger(VrpPickupDelivery.class.getName());
-
     static class DataModel {
         public final long[][] distanceMatrix = {
                 {0, 548, 776, 696, 582, 274, 502, 194, 308, 194, 536, 502, 388, 354, 468, 776, 662},
@@ -106,10 +102,10 @@ public class VrpPickupDelivery implements ProblemRunner {
 
             RoutingSearchParameters.Builder parametersBuilder =
                     main.defaultRoutingSearchParameters().toBuilder()
-                            .setFirstSolutionStrategy(firstSolutionStrategy);
+                            .setFirstSolutionStrategy(firstSolutionStrategy)
+                            .setTimeLimit(Duration.newBuilder().setSeconds(10).build());
             if (localSearch != null) {
-                parametersBuilder.setLocalSearchMetaheuristic(localSearch)
-                        .setTimeLimit(Duration.newBuilder().setSeconds(10).build());
+                parametersBuilder.setLocalSearchMetaheuristic(localSearch);
             }
 
             Assignment solution = routing.solveWithParameters(parametersBuilder.build());

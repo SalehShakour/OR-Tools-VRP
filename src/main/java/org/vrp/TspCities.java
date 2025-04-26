@@ -4,12 +4,9 @@ import com.google.ortools.Loader;
 import com.google.ortools.constraintsolver.*;
 import com.google.protobuf.Duration;
 
-import java.util.logging.Logger;
-
 public class TspCities implements ProblemRunner {
-    private static final Logger logger = Logger.getLogger(TspCities.class.getName());
 
-    static class DataModel {
+    public static class DataModel {
         public final long[][] distanceMatrix = {
                 {0, 548, 776, 696, 582, 274, 502, 194, 308, 194, 536, 502, 388, 354, 468, 776, 662},
                 {548, 0, 684, 308, 194, 502, 730, 354, 696, 742, 1084, 594, 480, 674, 1016, 868, 1210},
@@ -32,6 +29,7 @@ public class TspCities implements ProblemRunner {
         public final int vehicleNumber = 1;
         public final int depot = 0;
     }
+
 
     private String getSolutionString(
             RoutingModel routing, RoutingIndexManager manager, Assignment solution) {
@@ -84,6 +82,7 @@ public class TspCities implements ProblemRunner {
             searchParameters = main.defaultRoutingSearchParameters()
                     .toBuilder()
                     .setFirstSolutionStrategy(firstSolutionStrategy)
+                    .setTimeLimit(Duration.newBuilder().setSeconds(10).build())
                     .build();
         }
 
