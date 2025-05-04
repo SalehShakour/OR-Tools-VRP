@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository is part of a Master's thesis project that focuses on solving a variety of **Vehicle Routing Problems (VRPs)** using **Google OR-Tools** in Java. The goal is to systematically test different strategies across multiple routing problem types and log their performance.
+This repository is part of a Bachelor's thesis project that focuses on solving a variety of **Vehicle Routing Problems (VRPs)** using **Google OR-Tools** in Java. The goal is to systematically test different strategies across multiple routing problem types and log their performance.
 
 The project uses a centralized runner class (`RunExperiments.java`) to automate the evaluation of combinations of **First Solution Strategies** and **Local Search Metaheuristics** for a broad range of classical and constrained VRP variants.
 
