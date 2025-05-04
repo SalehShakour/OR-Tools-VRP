@@ -94,7 +94,7 @@ public class VrpTimeWindows implements ProblemRunner {
         RoutingSearchParameters.Builder parametersBuilder =
                 main.defaultRoutingSearchParameters().toBuilder()
                         .setFirstSolutionStrategy(firstSolutionStrategy)
-                        .setTimeLimit(Duration.newBuilder().setSeconds(10).build());
+                        .setTimeLimit(Duration.newBuilder().setSeconds(20).build());
         if (localSearch != null) {
             parametersBuilder.setLocalSearchMetaheuristic(localSearch);
         }
@@ -106,6 +106,6 @@ public class VrpTimeWindows implements ProblemRunner {
 
     @Override
     public String getName() {
-        return "VrpTimeWindows";
+        return "Vrp TimeWindows";
     }
 }

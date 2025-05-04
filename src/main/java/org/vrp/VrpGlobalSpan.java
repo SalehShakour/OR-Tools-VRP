@@ -102,6 +102,6 @@ public class VrpGlobalSpan implements ProblemRunner {
 
     @Override
     public String getName() {
-        return "VRP with Global Span";
+        return "VRP GlobalSpan";
     }
 }

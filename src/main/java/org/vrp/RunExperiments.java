@@ -9,10 +9,14 @@ import java.io.PrintWriter;
 import java.time.Duration;
 import java.time.Instant;
 
+import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.time.Duration;
+import java.time.Instant;
+
 public class RunExperiments {
     public static void main(String[] args) throws Exception {
         Loader.loadNativeLibraries();
-        PrintWriter writer = new PrintWriter(new FileWriter("TSP.txt"));
 
         ProblemRunner[] problems = {
                 new TspCities(),
@@ -26,9 +30,9 @@ public class RunExperiments {
                 FirstSolutionStrategy.Value.AUTOMATIC,
                 FirstSolutionStrategy.Value.PATH_CHEAPEST_ARC,
                 FirstSolutionStrategy.Value.PATH_MOST_CONSTRAINED_ARC,
-//                FirstSolutionStrategy.Value.EVALUATOR_STRATEGY,
+                 FirstSolutionStrategy.Value.EVALUATOR_STRATEGY,
                 FirstSolutionStrategy.Value.SAVINGS,
-//                FirstSolutionStrategy.Value.SWEEP,
+                FirstSolutionStrategy.Value.SWEEP,
                 FirstSolutionStrategy.Value.CHRISTOFIDES,
                 FirstSolutionStrategy.Value.ALL_UNPERFORMED,
                 FirstSolutionStrategy.Value.BEST_INSERTION,
@@ -39,9 +43,8 @@ public class RunExperiments {
                 FirstSolutionStrategy.Value.FIRST_UNBOUND_MIN_VALUE
         };
 
-
         LocalSearchMetaheuristic.Value[] localStrategies = {
-                null,
+//                null,
                 LocalSearchMetaheuristic.Value.AUTOMATIC,
                 LocalSearchMetaheuristic.Value.GREEDY_DESCENT,
                 LocalSearchMetaheuristic.Value.GUIDED_LOCAL_SEARCH,
@@ -51,6 +54,9 @@ public class RunExperiments {
         };
 
         for (ProblemRunner problem : problems) {
+            String fileName = problem.getName().replaceAll("\\s+", "_") + ".txt";
+            PrintWriter writer = new PrintWriter(new FileWriter(fileName));
+
             for (FirstSolutionStrategy.Value first : firstStrategies) {
                 for (LocalSearchMetaheuristic.Value local : localStrategies) {
                     writer.println("------------------------------------------------");
@@ -68,9 +74,11 @@ public class RunExperiments {
                     writer.flush();
                 }
             }
+
+            writer.close();
+            System.out.println("Results saved to " + fileName);
         }
 
-        writer.close();
-        System.out.println("Experiments completed and results saved to TSP.txt");
+        System.out.println("All experiments completed successfully.");
     }
 }

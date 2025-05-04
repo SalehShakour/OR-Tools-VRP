@@ -76,13 +76,13 @@ public class TspCities implements ProblemRunner {
                     .toBuilder()
                     .setFirstSolutionStrategy(firstSolutionStrategy)
                     .setLocalSearchMetaheuristic(localSearch)
-                    .setTimeLimit(Duration.newBuilder().setSeconds(10).build())
+                    .setTimeLimit(Duration.newBuilder().setSeconds(15).build())
                     .build();
         } else {
             searchParameters = main.defaultRoutingSearchParameters()
                     .toBuilder()
                     .setFirstSolutionStrategy(firstSolutionStrategy)
-                    .setTimeLimit(Duration.newBuilder().setSeconds(10).build())
+                    .setTimeLimit(Duration.newBuilder().setSeconds(15).build())
                     .build();
         }
 
@@ -97,6 +97,6 @@ public class TspCities implements ProblemRunner {
 
     @Override
     public String getName() {
-        return "TSP - Cities";
+        return "TSP Cities";
     }
 }

@@ -101,7 +101,7 @@ public class VrpCapacity implements ProblemRunner {
 
             RoutingSearchParameters.Builder searchParamsBuilder = main.defaultRoutingSearchParameters().toBuilder()
                     .setFirstSolutionStrategy(first)
-                    .setTimeLimit(Duration.newBuilder().setSeconds(10).build());
+                    .setTimeLimit(Duration.newBuilder().setSeconds(20).build());
             if (local != null) {
                 searchParamsBuilder.setLocalSearchMetaheuristic(local);
             }
@@ -119,6 +119,6 @@ public class VrpCapacity implements ProblemRunner {
 
     @Override
     public String getName() {
-        return "VRP with Capacity Constraints";
+        return "VRP CapacityConstraints";
     }
 }

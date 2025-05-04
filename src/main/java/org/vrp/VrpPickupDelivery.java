@@ -103,7 +103,7 @@ public class VrpPickupDelivery implements ProblemRunner {
             RoutingSearchParameters.Builder parametersBuilder =
                     main.defaultRoutingSearchParameters().toBuilder()
                             .setFirstSolutionStrategy(firstSolutionStrategy)
-                            .setTimeLimit(Duration.newBuilder().setSeconds(10).build());
+                            .setTimeLimit(Duration.newBuilder().setSeconds(40).build());
             if (localSearch != null) {
                 parametersBuilder.setLocalSearchMetaheuristic(localSearch);
             }
@@ -123,6 +123,6 @@ public class VrpPickupDelivery implements ProblemRunner {
 
     @Override
     public String getName() {
-        return "VrpPickupDelivery";
+        return "Vrp PickupDelivery";
     }
 }
